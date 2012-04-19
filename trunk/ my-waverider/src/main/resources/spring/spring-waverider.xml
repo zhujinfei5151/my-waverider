@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+	xsi:schemaLocation="
+	http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
+	http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-2.5.xsd"
+	default-autowire="byName">
+	
+	<!-- ======================================================================== -->
+    <!--  							Master                                        -->
+    <!-- ======================================================================== -->
+    <bean id="master" class="com.taobao.top.waverider.master.MasterNode">
+    	<property name="netWorkServer" ref="netWorkServer"/>
+    	<property name="sessionManager" ref="sessionManager"/>
+    </bean>
+    
+    <bean id="masterHeartbeatCommandHandler" class="com.taobao.top.waverider.command.MasterHeartbeatCommandHandler">
+    	<property name="master" ref="master"/>
+    </bean>
+    <bean id="sessionManager" class="com.taobao.top.waverider.session.DefaultSessionManager" init-method="init">
+    	<property name="maxSessionCount" value="1024" />
+    	<property name="preInitSessionCount" value="1" />
+    	<property name="increaseSessionCount" value="2" />
+    	<property name="commandDispatcher" ref="masterCommandDispatcher" />
+    </bean>
+    
+    <bean id="masterCommandDispatcher" class="com.taobao.top.waverider.command.SampleCommandDispatcher" init-method="init">
+    	<property name="commandRoutingTable">
+    		<map>
+    			<entry key="0">
+    				<ref bean="masterHeartbeatCommandHandler" />
+    			</entry>
+    			<entry key="1">
+    				<ref bean="masterGreetCommandHandler" />
+    			</entry>
+    		</map>
+    	</property>
+    </bean>
+    
+    <bean id="netWorkServer" class="com.taobao.top.waverider.network.DefaultNetWorkServer">
+    	<property name="sessionManager" ref="sessionManager" />
+    	<property name="hostName" value="127.0.0.1" />
+    </bean>
+    
+    <bean id="masterGreetCommandHandler" class="com.taobao.top.waverider.command.MasterGreetCommandHandler">
+    </bean>
+    
+    
+    <!-- ======================================================================== -->
+    <!--  							Shared                                        -->
+    <!-- ======================================================================== -->
+	<bean id="waveriderConfig" class="com.taobao.top.waverider.config.WaveriderConfig">
+		<property name="slaveCommandProduceInterval" value="60" />
+	</bean>
+    
+    <!-- ======================================================================== -->
+    <!--  							Slave                                         -->
+    <!-- ======================================================================== -->
+    <bean id="slave" class="com.taobao.top.waverider.slave.SlaveNode">
+    	<property name="netWorkClient" ref="netWorkClient"/>
+    	<property name="commandProviderList">
+    		<list>
+    			<ref  bean="commandProvider"/>
+    			<!--
+    			<ref  bean="slavePushResultCommandProvider"/>
+    			-->
+    		</list>
+    	</property>
+    	<property name="masterFailureMonitor" ref="masterFailureMonitor"/>
+    </bean>
+    
+    <bean id="slaveHeartbeatCommandHandler" class="com.taobao.top.waverider.command.SlaveHeartbeatCommandHandler">
+    	<property name="slave" ref="slave"/>
+    </bean>
+    <bean id="slaveCommandDispatcher" class="com.taobao.top.waverider.command.SampleCommandDispatcher" init-method="init">
+    	<property name="commandRoutingTable">
+    		<map>
+    			<entry key="0">
+    				<ref bean="slaveHeartbeatCommandHandler" />
+    			</entry>
+    			<entry key="1">
+    				<ref bean="slaveGreetCommandHandler" />
+    			</entry>
+    		</map>
+    	</property>
+    </bean>
+  
+    
+    <bean id="netWorkClient" class="com.taobao.top.waverider.network.DefaultNetWorkClient">
+    	<property name="hostName" value="127.0.0.1" />
+    	<property name="commandDispatcher" ref="slaveCommandDispatcher" />
+    	<property name="slave" ref="slave"/>
+    </bean>
+    
+    <bean id="slaveGreetCommandHandler" class="com.taobao.top.waverider.command.SlaveGreetCommandHandler">
+    </bean>
+    
+    <bean id="commandProvider" class="com.taobao.top.waverider.command.GreetCommandProvider">
+    </bean>
+    
+    <bean id="masterFailureMonitor" class="com.taobao.top.waverider.slave.failure.slave.DefaultMasterFailureMonitor">
+    	<property name="masterFailureHandler" ref="masterFailureHandler" />
+    </bean>
+    
+    <bean id="masterFailureHandler" class="com.taobao.top.waverider.slave.failure.slave.DefaultMasterFailureHandler">
+    </bean>
+	
+</beans>
